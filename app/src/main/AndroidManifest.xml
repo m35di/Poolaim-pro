@@ -9,7 +9,7 @@
         android:allowBackup="true"
         android:label="PoolAim"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
+        android:theme="@style/Theme.PoolAim">
 
         <activity
             android:name=".MainActivity"
