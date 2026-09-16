@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.PointF;
-import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.ArrayList;
@@ -14,169 +13,75 @@ import java.util.List;
 
 public class LineView extends View {
 
-    private Paint mainPaint;
-    private Paint predictPaint;
-    private Paint cushionPaint;
-    private Paint circlePaint;
-    private Paint cuePaint;
-
-    private int screenW = 0, screenH = 0;
-    private int mode = 0;
-    private int colorIndex = 0;
-    private int thicknessIndex = 1;
-
-    private PointF cuePoint = new PointF();
-    private PointF ballPoint = new PointF();
-    private PointF cueDefault = new PointF();
-    private boolean ballPointSet = false;
-
-    private List<PointF> predictedPath = new ArrayList<>();
-
-    private static final int[] COLORS = {
-            0xFF00FF00, 0xFFFF00FF, 0xFF00FFFF, 0xFFFF6600
-    };
-    private static final float[] THICKNESS = { 3f, 5f, 8f };
+    private Paint mainPaint, predictPaint, cushionPaint, circlePaint, cuePaint;
+    private int W = 0, H = 0;
+    private PointF cue = new PointF();
+    private PointF ball = new PointF();
+    private List<PointF> path = new ArrayList<>();
 
     public LineView(Context ctx) {
         super(ctx);
         try {
             mainPaint = new Paint();
+            mainPaint.setColor(0xFF00FF00);
+            mainPaint.setStrokeWidth(5f);
             mainPaint.setAntiAlias(true);
             mainPaint.setStyle(Paint.Style.STROKE);
-            mainPaint.setStrokeCap(Paint.Cap.ROUND);
 
             predictPaint = new Paint();
+            predictPaint.setColor(0xFFFFEB3B);
+            predictPaint.setStrokeWidth(4f);
             predictPaint.setAntiAlias(true);
             predictPaint.setStyle(Paint.Style.STROKE);
-            predictPaint.setStrokeCap(Paint.Cap.ROUND);
 
             cushionPaint = new Paint();
+            cushionPaint.setColor(0xFF00BCD4);
+            cushionPaint.setStrokeWidth(3f);
             cushionPaint.setAntiAlias(true);
             cushionPaint.setStyle(Paint.Style.STROKE);
-            cushionPaint.setStrokeCap(Paint.Cap.ROUND);
             cushionPaint.setPathEffect(new DashPathEffect(new float[]{25f, 15f}, 0));
 
             circlePaint = new Paint();
+            circlePaint.setColor(0xFFFF1744);
             circlePaint.setAntiAlias(true);
             circlePaint.setStyle(Paint.Style.FILL);
 
             cuePaint = new Paint();
+            cuePaint.setColor(Color.WHITE);
             cuePaint.setAntiAlias(true);
             cuePaint.setStyle(Paint.Style.FILL);
-            cuePaint.setColor(Color.WHITE);
 
-            applyColors();
             setLayerType(LAYER_TYPE_HARDWARE, null);
         } catch (Exception ignored) {}
     }
 
-    private void applyColors() {
-        try {
-            int c = COLORS[colorIndex % COLORS.length];
-            float t = THICKNESS[thicknessIndex % THICKNESS.length];
-
-            mainPaint.setColor(c);
-            mainPaint.setStrokeWidth(t);
-
-            predictPaint.setColor(0xFFFFEB3B);
-            predictPaint.setStrokeWidth(t - 1);
-
-            cushionPaint.setColor(0xFF00BCD4);
-            cushionPaint.setStrokeWidth(Math.max(2f, t - 2));
-
-            circlePaint.setColor(0xFFFF1744);
-        } catch (Exception ignored) {}
-    }
-
-    public void setMode(int m) {
-        try {
-            mode = m;
-            invalidate();
-        } catch (Exception ignored) {}
-    }
-
-    public void cycleColor() {
-        try {
-            colorIndex = (colorIndex + 1) % COLORS.length;
-            applyColors();
-            invalidate();
-        } catch (Exception ignored) {}
-    }
-
-    public void cycleThickness() {
-        try {
-            thicknessIndex = (thicknessIndex + 1) % THICKNESS.length;
-            applyColors();
-            invalidate();
-        } catch (Exception ignored) {}
-    }
-
-    public void moveCue(float dx, float dy) {
-        try {
-            cueDefault.x += dx;
-            cueDefault.y += dy;
-            cuePoint.set(cueDefault);
-            recalc();
-            invalidate();
-        } catch (Exception ignored) {}
-    }
-
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        try {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                float x = event.getX();
-                float y = event.getY();
-                if (x >= 0 && y >= 0 && x <= screenW && y <= screenH) {
-                    ballPoint.set(x, y);
-                    ballPointSet = true;
-                    recalc();
-                    invalidate();
-                }
-                return true;
-            }
-        } catch (Exception ignored) {}
-        return super.onTouchEvent(event);
-    }
-
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-        try {
-            screenW = w;
-            screenH = h;
-            if (!ballPointSet) {
-                cueDefault.set(w * 0.10f, h * 0.80f);
-                cuePoint.set(cueDefault);
-                ballPoint.set(w * 0.60f, h * 0.50f);
-            }
-            recalc();
-        } catch (Exception ignored) {}
+    protected void onSizeChanged(int w, int h, int ow, int oh) {
+        super.onSizeChanged(w, h, ow, oh);
+        W = w; H = h;
+        cue.set(w * 0.10f, h * 0.80f);
+        ball.set(w * 0.60f, h * 0.50f);
+        recalc();
     }
 
     private void recalc() {
         try {
-            predictedPath.clear();
-            if (screenW <= 0 || screenH <= 0) return;
-            if (cuePoint == null || ballPoint == null) return;
+            path.clear();
+            if (W <= 0 || H <= 0) return;
 
-            float dx = ballPoint.x - cuePoint.x;
-            float dy = ballPoint.y - cuePoint.y;
-            float len = (float) Math.sqrt(dx * dx + dy * dy);
+            float dx = ball.x - cue.x;
+            float dy = ball.y - cue.y;
+            float len = (float) Math.sqrt(dx*dx + dy*dy);
             if (len < 5f) return;
 
             float dirX = dx / len;
             float dirY = dy / len;
 
-            float px = ballPoint.x;
-            float py = ballPoint.y;
+            float px = ball.x, py = ball.y;
+            float cxMin = W * 0.05f, cyMin = H * 0.05f;
+            float cxMax = W * 0.95f, cyMax = H * 0.95f;
 
-            float cxMin = screenW * 0.05f;
-            float cyMin = screenH * 0.05f;
-            float cxMax = screenW * 0.95f;
-            float cyMax = screenH * 0.95f;
-
-            predictedPath.add(new PointF(px, py));
+            path.add(new PointF(px, py));
 
             for (int i = 0; i < 4; i++) {
                 float tMin = Float.MAX_VALUE;
@@ -189,7 +94,6 @@ public class LineView extends View {
                     float t = (cxMax - px) / dirX;
                     if (t > 0 && t < tMin) { tMin = t; hit = 1; }
                 }
-
                 if (dirY < -0.0001f) {
                     float t = (cyMin - py) / dirY;
                     if (t > 0 && t < tMin) { tMin = t; hit = 2; }
@@ -200,60 +104,40 @@ public class LineView extends View {
 
                 if (hit == -1 || tMin == Float.MAX_VALUE || tMin > 5000f) break;
 
-                float hitX = px + dirX * tMin;
-                float hitY = py + dirY * tMin;
-
-                predictedPath.add(new PointF(hitX, hitY));
+                float hx = px + dirX * tMin;
+                float hy = py + dirY * tMin;
+                path.add(new PointF(hx, hy));
 
                 if (hit == 0 || hit == 1) dirX = -dirX;
                 if (hit == 2 || hit == 3) dirY = -dirY;
 
-                px = hitX + dirX * 2f;
-                py = hitY + dirY * 2f;
+                px = hx + dirX * 2f;
+                py = hy + dirY * 2f;
             }
-
-            predictedPath.add(new PointF(px, py));
+            path.add(new PointF(px, py));
         } catch (Exception ignored) {}
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
+    protected void onDraw(Canvas c) {
+        super.onDraw(c);
         try {
-            if (screenW <= 0 || screenH <= 0) return;
-            if (canvas == null) return;
+            if (W <= 0 || H <= 0 || c == null) return;
 
-            // خط اصلی
-            canvas.drawLine(cuePoint.x, cuePoint.y, ballPoint.x, ballPoint.y, mainPaint);
+            c.drawLine(cue.x, cue.y, ball.x, ball.y, mainPaint);
+            c.drawCircle(cue.x, cue.y, 16f, cuePaint);
+            c.drawCircle(ball.x, ball.y, 20f, circlePaint);
 
-            // نقطه cue
-            canvas.drawCircle(cuePoint.x, cuePoint.y, 16f, cuePaint);
-
-            // توپ هدف
-            canvas.drawCircle(ballPoint.x, ballPoint.y, 20f, circlePaint);
-
-            // مسیر پیش‌بینی
-            if (predictedPath.size() >= 2) {
-                for (int i = 0; i < predictedPath.size() - 1; i++) {
-                    PointF p1 = predictedPath.get(i);
-                    PointF p2 = predictedPath.get(i + 1);
+            if (path.size() >= 2) {
+                for (int i = 0; i < path.size() - 1; i++) {
+                    PointF p1 = path.get(i);
+                    PointF p2 = path.get(i + 1);
                     if (p1 == null || p2 == null) continue;
-
                     Paint p = (i == 0) ? predictPaint : cushionPaint;
-                    canvas.drawLine(p1.x, p1.y, p2.x, p2.y, p);
-
-                    if (i > 0 && i < predictedPath.size() - 1) {
-                        canvas.drawCircle(p1.x, p1.y, 7f, predictPaint);
+                    c.drawLine(p1.x, p1.y, p2.x, p2.y, p);
+                    if (i > 0 && i < path.size() - 1) {
+                        c.drawCircle(p1.x, p1.y, 7f, predictPaint);
                     }
-                }
-            }
-
-            // حالت Box
-            if (mode == 2) {
-                for (int i = 1; i <= 3; i++) {
-                    float off = i * 50f;
-                    canvas.drawLine(cuePoint.x, cuePoint.y - off, ballPoint.x, ballPoint.y - off, cushionPaint);
-                    canvas.drawLine(cuePoint.x, cuePoint.y + off, ballPoint.x, ballPoint.y + off, cushionPaint);
                 }
             }
         } catch (Exception ignored) {}
