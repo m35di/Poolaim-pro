@@ -16,35 +16,20 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.annotation.Nullable;
 
 public class OverlayService extends Service {
 
     private WindowManager wm;
     private FrameLayout guidelineLayer;
     private Button mainBtn;
-    private Button modeBtn;
-    private Button aimBtn;
-    private Button colorBtn;
-    private Button thickBtn;
-    private Button cueUpBtn;
-    private Button cueDownBtn;
-
     private LineView lineView;
+
     private boolean overlayOn = false;
-    private boolean aimMode = false;
-    private int currentMode = 0;
 
     private WindowManager.LayoutParams lineParams;
     private WindowManager.LayoutParams mainBtnParams;
-    private WindowManager.LayoutParams modeBtnParams;
-    private WindowManager.LayoutParams aimBtnParams;
-    private WindowManager.LayoutParams colorBtnParams;
-    private WindowManager.LayoutParams thickBtnParams;
-    private WindowManager.LayoutParams cueUpParams;
-    private WindowManager.LayoutParams cueDownParams;
 
     private static final int TYPE_OVERLAY =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -54,9 +39,7 @@ public class OverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         try {
-            if (wm == null) {
-                initOverlay();
-            }
+            if (wm == null) init();
         } catch (Exception e) {
             Toast.makeText(this, "خطا: " + e.getMessage(), Toast.LENGTH_LONG).show();
             stopSelf();
@@ -64,7 +47,7 @@ public class OverlayService extends Service {
         return START_NOT_STICKY;
     }
 
-    private void initOverlay() {
+    private void init() {
         if (!Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "دسترسی Overlay نداری", Toast.LENGTH_LONG).show();
             stopSelf();
@@ -72,15 +55,11 @@ public class OverlayService extends Service {
         }
 
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        if (wm == null) {
-            stopSelf();
-            return;
-        }
+        if (wm == null) { stopSelf(); return; }
 
-        // نوتیفیکیشن سرویس
-        startNotification();
+        startNotif();
 
-        // ============ لایه خطوط ============
+        // لایه خطوط
         guidelineLayer = new FrameLayout(this);
         guidelineLayer.setBackgroundColor(Color.TRANSPARENT);
 
@@ -97,86 +76,32 @@ public class OverlayService extends Service {
         lineParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
-                TYPE_OVERLAY,
-                lineFlags,
-                PixelFormat.TRANSLUCENT);
+                TYPE_OVERLAY, lineFlags, PixelFormat.TRANSLUCENT);
         lineParams.gravity = Gravity.TOP | Gravity.START;
 
         wm.addView(guidelineLayer, lineParams);
         guidelineLayer.setVisibility(View.GONE);
 
-        // ============ ساخت دکمه‌ها ============
-        mainBtn = makeButton("🎯", "#CC00FF00");
-        mainBtnParams = makeParams(40, 400);
-        attachDrag(mainBtn, mainBtnParams, "main");
-        wm.addView(mainBtn, mainBtnParams);
+        // دکمه شناور
+        mainBtn = new Button(this);
+        mainBtn.setText("AIM");
+        mainBtn.setTextSize(16);
+        mainBtn.setBackgroundColor(0xCC00FF00);
+        mainBtn.setAlpha(0.92f);
 
-        modeBtn = makeButton("L", "#CC0066FF");
-        modeBtnParams = makeParams(40, 550);
-        attachDrag(modeBtn, modeBtnParams, "mode");
-        wm.addView(modeBtn, modeBtnParams);
-        modeBtn.setVisibility(View.GONE);
-
-        aimBtn = makeButton("👆", "#CCFF6600");
-        aimBtnParams = makeParams(40, 700);
-        attachDrag(aimBtn, aimBtnParams, "aim");
-        wm.addView(aimBtn, aimBtnParams);
-        aimBtn.setVisibility(View.GONE);
-
-        colorBtn = makeButton("🎨", "#CC6600CC");
-        colorBtnParams = makeParams(40, 850);
-        attachDrag(colorBtn, colorBtnParams, "color");
-        wm.addView(colorBtn, colorBtnParams);
-        colorBtn.setVisibility(View.GONE);
-
-        thickBtn = makeButton("➖", "#CC444444");
-        thickBtnParams = makeParams(40, 1000);
-        attachDrag(thickBtn, thickBtnParams, "thick");
-        wm.addView(thickBtn, thickBtnParams);
-        thickBtn.setVisibility(View.GONE);
-
-        cueUpBtn = makeButton("⬆", "#CC0099AA");
-        cueUpParams = makeParams(40, 1150);
-        attachDrag(cueUpBtn, cueUpParams, "cueup");
-        wm.addView(cueUpBtn, cueUpParams);
-        cueUpBtn.setVisibility(View.GONE);
-
-        cueDownBtn = makeButton("⬇", "#CC0099AA");
-        cueDownParams = makeParams(40, 1300);
-        attachDrag(cueDownBtn, cueDownParams, "cuedown");
-        wm.addView(cueDownBtn, cueDownParams);
-        cueDownBtn.setVisibility(View.GONE);
-    }
-
-    private Button makeButton(String text, String colorHex) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setTextSize(18);
-        try {
-            b.setBackgroundColor(Color.parseColor(colorHex));
-        } catch (Exception ignored) {}
-        b.setAlpha(0.92f);
-        b.setPadding(20, 10, 20, 10);
-        return b;
-    }
-
-    private WindowManager.LayoutParams makeParams(int x, int y) {
-        WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+        mainBtnParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 TYPE_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
-        p.gravity = Gravity.TOP | Gravity.START;
-        p.x = x;
-        p.y = y;
-        return p;
-    }
+        mainBtnParams.gravity = Gravity.TOP | Gravity.START;
+        mainBtnParams.x = 40;
+        mainBtnParams.y = 400;
 
-    private void attachDrag(final Button btn, final WindowManager.LayoutParams params, final String type) {
-        btn.setOnTouchListener(new View.OnTouchListener() {
-            int startX, startY;
-            float touchX, touchY;
+        mainBtn.setOnTouchListener(new View.OnTouchListener() {
+            int sx, sy;
+            float tx, ty;
             boolean moved;
 
             @Override
@@ -184,174 +109,75 @@ public class OverlayService extends Service {
                 try {
                     switch (e.getAction()) {
                         case MotionEvent.ACTION_DOWN:
-                            startX = params.x;
-                            startY = params.y;
-                            touchX = e.getRawX();
-                            touchY = e.getRawY();
+                            sx = mainBtnParams.x;
+                            sy = mainBtnParams.y;
+                            tx = e.getRawX();
+                            ty = e.getRawY();
                             moved = false;
                             return true;
                         case MotionEvent.ACTION_MOVE:
-                            int dx = (int) (e.getRawX() - touchX);
-                            int dy = (int) (e.getRawY() - touchY);
+                            int dx = (int)(e.getRawX() - tx);
+                            int dy = (int)(e.getRawY() - ty);
                             if (Math.abs(dx) > 15 || Math.abs(dy) > 15) moved = true;
-                            params.x = startX + dx;
-                            params.y = startY + dy;
-                            if (wm != null) wm.updateViewLayout(btn, params);
+                            mainBtnParams.x = sx + dx;
+                            mainBtnParams.y = sy + dy;
+                            wm.updateViewLayout(mainBtn, mainBtnParams);
                             return true;
                         case MotionEvent.ACTION_UP:
-                            if (!moved) handleClick(type);
+                            if (!moved) toggle();
                             return true;
                     }
                 } catch (Exception ignored) {}
                 return false;
             }
         });
+
+        wm.addView(mainBtn, mainBtnParams);
     }
 
-    private void handleClick(String type) {
-        try {
-            switch (type) {
-                case "main": toggleOverlay(); break;
-                case "mode": switchMode(); break;
-                case "aim": toggleAimMode(); break;
-                case "color":
-                    if (lineView != null) lineView.cycleColor();
-                    toast("رنگ عوض شد");
-                    break;
-                case "thick":
-                    if (lineView != null) lineView.cycleThickness();
-                    toast("ضخامت عوض شد");
-                    break;
-                case "cueup":
-                    if (lineView != null) lineView.moveCue(0, -15);
-                    break;
-                case "cuedown":
-                    if (lineView != null) lineView.moveCue(0, 15);
-                    break;
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private void toggleOverlay() {
+    private void toggle() {
         try {
             overlayOn = !overlayOn;
-            int[] hideable = {View.VISIBLE, View.GONE};
-            int v = overlayOn ? View.VISIBLE : View.GONE;
-            int g = overlayOn ? View.GONE : View.VISIBLE;
-
-            guidelineLayer.setVisibility(v);
-            modeBtn.setVisibility(v);
-            aimBtn.setVisibility(v);
-            colorBtn.setVisibility(v);
-            thickBtn.setVisibility(v);
-            cueUpBtn.setVisibility(v);
-            cueDownBtn.setVisibility(v);
-
             if (overlayOn) {
-                mainBtn.setText("✖");
-                mainBtn.setBackgroundColor(Color.parseColor("#CCFF0000"));
+                guidelineLayer.setVisibility(View.VISIBLE);
+                mainBtn.setText("X");
+                mainBtn.setBackgroundColor(0xCCFF0000);
                 toast("خط فعال");
             } else {
-                mainBtn.setText("🎯");
-                mainBtn.setBackgroundColor(Color.parseColor("#CC00FF00"));
-                aimMode = false;
-                updateLineTouchability();
+                guidelineLayer.setVisibility(View.GONE);
+                mainBtn.setText("AIM");
+                mainBtn.setBackgroundColor(0xCC00FF00);
                 toast("خاموش");
             }
         } catch (Exception ignored) {}
     }
 
-    private void switchMode() {
-        try {
-            currentMode = (currentMode + 1) % 3;
-            switch (currentMode) {
-                case 0:
-                    modeBtn.setText("L");
-                    modeBtn.setBackgroundColor(Color.parseColor("#CC0066FF"));
-                    toast("Long");
-                    break;
-                case 1:
-                    modeBtn.setText("T");
-                    modeBtn.setBackgroundColor(Color.parseColor("#CCFF6600"));
-                    toast("Triple + Predictor");
-                    break;
-                case 2:
-                    modeBtn.setText("B");
-                    modeBtn.setBackgroundColor(Color.parseColor("#CC9900FF"));
-                    toast("Box");
-                    break;
-            }
-            if (lineView != null) lineView.setMode(currentMode);
-        } catch (Exception ignored) {}
-    }
-
-    private void toggleAimMode() {
-        try {
-            aimMode = !aimMode;
-            if (aimMode) {
-                aimBtn.setText("🔒");
-                aimBtn.setBackgroundColor(Color.parseColor("#CC00AA00"));
-            } else {
-                aimBtn.setText("👆");
-                aimBtn.setBackgroundColor(Color.parseColor("#CCFF6600"));
-            }
-            updateLineTouchability();
-        } catch (Exception ignored) {}
-    }
-
-    private void updateLineTouchability() {
-        try {
-            if (lineParams == null || wm == null || guidelineLayer == null) return;
-
-            int baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                    | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-
-            if (aimMode) {
-                lineParams.flags = baseFlags;
-            } else {
-                lineParams.flags = baseFlags | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-            }
-            wm.updateViewLayout(guidelineLayer, lineParams);
-        } catch (Exception ignored) {}
-    }
-
-    private void startNotification() {
+    private void startNotif() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel ch = new NotificationChannel(
-                        "poolaim_ch",
-                        "PoolAim",
-                        NotificationManager.IMPORTANCE_LOW);
-                ch.setShowBadge(false);
+                        "onyx_ch", "PoolAim", NotificationManager.IMPORTANCE_LOW);
                 NotificationManager nm = getSystemService(NotificationManager.class);
                 if (nm != null) nm.createNotificationChannel(ch);
             }
-
-            Notification notif;
+            Notification n;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                notif = new Notification.Builder(this, "poolaim_ch")
-                        .setContentTitle("PoolAim Pro")
-                        .setContentText("فعال — دکمه 🎯 رو بزن")
+                n = new Notification.Builder(this, "onyx_ch")
+                        .setContentTitle("PoolAim فعاله")
                         .setSmallIcon(android.R.drawable.ic_menu_view)
-                        .setOngoing(true)
                         .build();
             } else {
-                notif = new Notification.Builder(this)
-                        .setContentTitle("PoolAim Pro")
-                        .setContentText("فعال")
+                n = new Notification.Builder(this)
+                        .setContentTitle("PoolAim فعاله")
                         .setSmallIcon(android.R.drawable.ic_menu_view)
                         .build();
             }
-
-            startForeground(1, notif);
+            startForeground(1, n);
         } catch (Exception ignored) {}
     }
 
     private void toast(String s) {
-        try {
-            Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
-        } catch (Exception ignored) {}
+        try { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); } catch (Exception ignored) {}
     }
 
     @Override
@@ -359,15 +185,8 @@ public class OverlayService extends Service {
         super.onDestroy();
         try { if (guidelineLayer != null && wm != null) wm.removeView(guidelineLayer); } catch (Exception ignored) {}
         try { if (mainBtn != null && wm != null) wm.removeView(mainBtn); } catch (Exception ignored) {}
-        try { if (modeBtn != null && wm != null) wm.removeView(modeBtn); } catch (Exception ignored) {}
-        try { if (aimBtn != null && wm != null) wm.removeView(aimBtn); } catch (Exception ignored) {}
-        try { if (colorBtn != null && wm != null) wm.removeView(colorBtn); } catch (Exception ignored) {}
-        try { if (thickBtn != null && wm != null) wm.removeView(thickBtn); } catch (Exception ignored) {}
-        try { if (cueUpBtn != null && wm != null) wm.removeView(cueUpBtn); } catch (Exception ignored) {}
-        try { if (cueDownBtn != null && wm != null) wm.removeView(cueDownBtn); } catch (Exception ignored) {}
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) { return null; }
 }
