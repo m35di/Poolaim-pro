@@ -1,72 +1,128 @@
 package com.onyx.poolaim;
 
-import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private static final int REQ_OVERLAY = 1001;
-    private static final int REQ_NOTIF = 1002;
     private TextView status;
-    private Button grantBtn;
-    private Button startBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try {
-            setContentView(R.layout.activity_main);
 
-            status = findViewById(R.id.status);
-            grantBtn = findViewById(R.id.grant_btn);
-            startBtn = findViewById(R.id.start_btn);
-            Button stopBtn = findViewById(R.id.stop_btn);
+        // ساخت layout به صورت برنامه‌نویسی (بدون XML)
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xFF0A0A0A);
+        root.setPadding(60, 120, 60, 60);
+        root.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
 
-            updateStatus();
+        TextView title = new TextView(this);
+        title.setText("PoolAim Pro");
+        title.setTextColor(0xFF00FF00);
+        title.setTextSize(28);
+        title.setGravity(android.view.Gravity.CENTER);
+        root.addView(title);
 
-            grantBtn.setOnClickListener(v -> requestOverlay());
-            startBtn.setOnClickListener(v -> startOverlayService());
-            stopBtn.setOnClickListener(v -> {
+        TextView sub = new TextView(this);
+        sub.setText("Aim + Predictor Tool");
+        sub.setTextColor(0xFF888888);
+        sub.setTextSize(13);
+        sub.setGravity(android.view.Gravity.CENTER);
+        sub.setPadding(0, 10, 0, 40);
+        root.addView(sub);
+
+        status = new TextView(this);
+        status.setTextSize(16);
+        status.setGravity(android.view.Gravity.CENTER);
+        status.setPadding(20, 20, 20, 20);
+        status.setBackgroundColor(0xFF1A1A1A);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        sp.bottomMargin = 40;
+        root.addView(status, sp);
+
+        Button grant = new Button(this);
+        grant.setText("1. دادن دسترسی Overlay");
+        grant.setTextSize(15);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 160);
+        bp.bottomMargin = 20;
+        root.addView(grant, bp);
+
+        Button start = new Button(this);
+        start.setText("2. فعال‌سازی چیت");
+        start.setTextSize(15);
+        root.addView(start, bp);
+
+        Button stop = new Button(this);
+        stop.setText("3. خاموش کردن");
+        stop.setTextSize(15);
+        root.addView(stop, bp);
+
+        TextView hint = new TextView(this);
+        hint.setText("راهنما:\n۱. Overlay رو مجاز کن\n۲. فعال‌سازی بزن\n۳. برو تو بازی\n۴. دکمه 🎯 رو بزن");
+        hint.setTextColor(0xFF666666);
+        hint.setTextSize(12);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        hp.topMargin = 40;
+        root.addView(hint, hp);
+
+        setContentView(root);
+
+        updateStatus();
+
+        grant.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                requestOverlay();
+            }
+        });
+
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startServiceNow();
+            }
+        });
+
+        stop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 try {
-                    stopService(new Intent(this, OverlayService.class));
-                    Toast.makeText(this, "خاموش شد", Toast.LENGTH_SHORT).show();
+                    stopService(new Intent(MainActivity.this, OverlayService.class));
+                    Toast.makeText(MainActivity.this, "خاموش شد", Toast.LENGTH_SHORT).show();
                 } catch (Exception e) {
-                    Toast.makeText(this, "خطا: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "خطا", Toast.LENGTH_SHORT).show();
                 }
-            });
-        } catch (Exception e) {
-            Toast.makeText(this, "خطای شروع: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+            }
+        });
     }
 
     private void updateStatus() {
         try {
-            boolean hasOverlay = Settings.canDrawOverlays(this);
-            if (hasOverlay) {
-                status.setText("✅ آماده — Overlay مجاز");
+            if (Settings.canDrawOverlays(this)) {
+                status.setText("وضعیت: آماده ✅");
                 status.setTextColor(0xFF00FF00);
-                if (startBtn != null) startBtn.setEnabled(true);
             } else {
-                status.setText("❌ دسترسی Overlay لازمه");
+                status.setText("وضعیت: دسترسی Overlay لازمه ❌");
                 status.setTextColor(0xFFFF4444);
-                if (startBtn != null) startBtn.setEnabled(false);
             }
-        } catch (Exception e) {
-            if (status != null) status.setText("وضعیت نامشخص");
-        }
+        } catch (Exception ignored) {}
     }
 
     private void requestOverlay() {
@@ -84,23 +140,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void startOverlayService() {
+    private void startServiceNow() {
         try {
             if (!Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "اول Overlay رو مجاز کن", Toast.LENGTH_LONG).show();
                 return;
             }
-
-            // درخواست نوتیفیکیشن برای اندروید ۱۳+
-            if (Build.VERSION.SDK_INT >= 33) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                        != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this,
-                            new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
-                    // ادامه می‌دیم — اگه رد کرد هم سرویس کار می‌کنه
-                }
-            }
-
             Intent svc = new Intent(this, OverlayService.class);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(svc);
@@ -115,18 +160,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        try {
-            if (requestCode == REQ_OVERLAY) {
-                updateStatus();
-            }
-        } catch (Exception ignored) {}
+        updateStatus();
     }
 
     @Override
@@ -134,4 +170,4 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         updateStatus();
     }
-                                                      }
+}
